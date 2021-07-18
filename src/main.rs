@@ -1,6 +1,8 @@
 use std::io;
 use std::io::{Read, Write};
+use std::env;
 extern crate iconv;
+extern crate getopts;
 
 #[derive(Copy, Clone, PartialEq)]
 enum CharacterTable {
@@ -163,19 +165,93 @@ fn set_underline(u: bool) {
     assert_eq!(epson_command.len(), sz);
 }
 
+fn print_usage(program: &str, opts: getopts::Options) {
+    let brief = format!("Usage: {} FILE [options]", program);
+    print!("{}", opts.usage(&brief).as_str());
+}
+
 fn main() {
     let mut inbuf: [u8; 4096] = [0; 4096];
     let mut state: PrinterState = PrinterState {
         codepage: CharacterTable::CP437,
         columns: 75,
-        typeface: TypeFace::Serif,
-        fontsize: FontSize::CPI12,
+        typeface: TypeFace::Draft,
+        fontsize: FontSize::CPI10,
         condensed: false,
         bold: false,
         underline: false
     };
+
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+    let mut opts = getopts::Options::new();
+    opts.optopt("c", "cols", "set number of columns", "COLS");
+    opts.optopt("s", "size", "font size", "<10 | 12 | 15>");
+    opts.optopt("f", "font", "font", "<draft | roman | serif>");
+    opts.optflag("", "condensed", "condensed");
+    opts.optflag("b", "bold", "bold typefaces");
+    opts.optflag("u", "under", "underline typeface");
+    opts.optflag("h", "help", "print this help menu");
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => { m }
+        Err(f) => { panic!("{}", f.to_string()) }
+    };
+    if matches.opt_present("h") {
+        print_usage(&program, opts);
+        return;
+    }
+
+    if matches.opt_present("u") {
+        state.underline = true;
+    } else {
+        state.underline = false;
+    }
+
+    if matches.opt_present("b") {
+        state.bold = true;
+    } else {
+        state.bold = false;
+    }
+
+    if matches.opt_present("condensed") {
+        state.condensed = true;
+    } else {
+        state.condensed = false;
+    }
+
+    if matches.opt_present("font") {
+        let font = matches.opt_str("font").unwrap();
+        state.typeface = match font.as_str() {
+            "draft" => TypeFace::Draft,
+            "serif" => TypeFace::Serif,
+            "roman" => TypeFace::Roman,
+            _ => panic!("Unknown typeface name provided")
+        };
+    }
+
+    if matches.opt_present("size") {
+        let sz_txt = matches.opt_str("size").unwrap();
+        state.fontsize = match sz_txt.as_str() {
+            "10" => FontSize::CPI10,
+            "12" => FontSize::CPI12,
+            "15" => FontSize::CPI15,
+            _ => panic!("Unsupported font size")
+        };
+    }
+
+    if matches.opt_present("c") {
+        let cols_txt = matches.opt_str("c").unwrap();
+        let cols = cols_txt.parse::<usize>().unwrap();
+        assert!(cols <= 80);
+        state.columns = cols;
+    }
+
+    set_condensed(false);
+    set_bold(false);
+    set_underline(false);
     set_font(TypeFace::Draft);
     set_font_size(FontSize::CPI10);
+
     set_number_of_columns(state.columns);
     set_font(state.typeface);
     set_font_size(state.fontsize);
