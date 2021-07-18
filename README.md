@@ -1,9 +1,8 @@
-= LX-300 ESC/P control =
+# LX-300 ESC/P control
 The program preprocesses text for ESC/P compatible 9-pin printer as Epson LX-300. Supprots cyryllic coding CP866.
 
-= Usage =
+# Usage
 Usage: ./escpctl FILE [options]
-
 Options:
     -c, --cols COLS     set number of columns
     -s, --size <10 | 12 | 15>
